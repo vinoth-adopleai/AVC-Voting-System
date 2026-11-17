@@ -3,13 +3,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { adminApi } from '../../api/adminApi.js'
 import StatusBadge from '../../components/ui/StatusBadge.jsx'
+import { formatIstDateTime } from '../../utils/dateTime.js'
 
 function formatTimestamp(value) {
   if (!value) return 'Not recorded'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime())
-    ? 'Not recorded'
-    : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+  const timestamp = formatIstDateTime(value)
+  return timestamp === '—' ? 'Not recorded' : timestamp
 }
 
 function formatDuration(milliseconds) {
@@ -176,15 +175,14 @@ export default function ElectionSetup() {
     <section className="election-setup-card" aria-labelledby="election-details-title">
       <div className="election-setup-heading">
         <div>
-          <p className="eyebrow">ELECTION DETAILS</p>
-          <h2 id="election-details-title">{election?.name ?? (isCreating ? 'Create election' : 'Configure an election')}</h2>
+          <p  id="election-details-title">ELECTION DETAILS</p>
         </div>
         {election ? (
           <StatusBadge tone={election.status === 'DRAFT' ? 'warning' : election.status === 'CLOSED' ? 'neutral' : 'success'}>
             {election.status}
           </StatusBadge>
         ) : null}
-      </div>
+      </div>5
 
       <div className="election-picker-row">
         <label className="form-field" htmlFor="election-picker">

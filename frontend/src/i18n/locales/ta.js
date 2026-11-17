@@ -13,6 +13,7 @@ export default {
   signOut: 'வெளியேறு',
   roleWorkspace: '{{role}} பணிமனை',
   navigation: {
+    waiting: 'காத்திருப்போர் பட்டியல்',
     dashboard: 'முகப்பு பலகை',
     election: 'தேர்தல் அமைப்பு',
     positions: 'பதவிகள்',
@@ -95,6 +96,9 @@ export default {
     retry: 'மீண்டும் முயற்சி',
   },
   monitor: {
+    lookupTitle: 'வாக்காளர் விவரங்களைத் தேடுக',
+    lookupDescription: 'வாக்காளர் வரிசை எண்ணை உள்ளிட்டு பதிவு விவரங்களைப் பார்க்கவும்.',
+    lookupSubmit: 'வாக்காளரைத் தேடு',
     title: 'வாக்குச்சாவடி பலகை',
     description: 'உங்களுக்கு ஒதுக்கப்பட்ட வாக்குச்சாவடிகளில் காத்திருக்கும் வாக்காளர்களையும் வாக்குப்பதிவு அமைப்புகளையும் நிர்வகிக்கவும்.',
     booth: 'வாக்குச்சாவடி',
@@ -103,6 +107,7 @@ export default {
     systemsDescription: 'உங்களுக்கு ஒதுக்கப்பட்ட வாக்குச்சாவடிகளின் நேரடி அமைப்பு நிலை.',
     waitingTitle: 'காத்திருக்கும் வாக்காளர்கள்',
     waitingDescription: 'நுழைவில் வருகை பதிவு செய்து அமைப்புக்காகக் காத்திருப்பவர்கள்.',
+    waitingName: 'பெயர்',
     searchLabel: 'வாக்காளரைத் தேடவும்',
     searchPlaceholder: 'வரிசை எண் அல்லது பெயரால் தேடவும்',
     selectVoter: 'தேர்வு',
@@ -124,6 +129,7 @@ export default {
     systemLabel: 'வாக்குப்பதிவு அமைப்பு',
     cancel: 'ரத்து செய்',
     giveAccess: 'அனுமதி வழங்கு',
+    assignSystem: 'வாக்குப்பதிவு அமைப்பை ஒதுக்கு',
     assigning: 'ஒதுக்கப்படுகிறது…',
     assignedSuccess: '{{name}} ({{serial}}), வாக்குச்சாவடி {{booth}}, அமைப்பு {{system}}க்கு ஒதுக்கப்பட்டார்.',
     state: {

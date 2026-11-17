@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 
 import { authApi } from '../api/authApi.js'
+import { monitorApi } from '../api/monitorApi.js'
 import LanguageToggle from '../components/ui/LanguageToggle.jsx'
 import { getRoleLabel } from '../app/roles.js'
 import { useAuthStore } from '../stores/authStore.js'
@@ -32,6 +34,9 @@ const navigationByRole = {
     { key: 'lookups', path: '/auditor/lookups', icon: '⌕' },
   ],
 }
+
+navigationByRole.MONITOR_OFFICER.push({ key: 'waiting', path: '/monitor/waiting', end: true, icon: '☷' })
+navigationByRole.MONITOR_SUPERVISOR.push({ key: 'waiting', path: '/monitor/waiting', end: true, icon: '☷' })
 
 function initials(user) {
   const name = user?.display_name ?? user?.name ?? user?.username ?? 'Staff'
@@ -64,6 +69,15 @@ export default function PanelLayout() {
     [location.pathname, navigation],
   )
   const displayName = user?.display_name ?? user?.name ?? user?.username ?? 'Staff'
+  const isBoothStaff = user?.role === 'MONITOR_OFFICER' || user?.role === 'MONITOR_SUPERVISOR'
+  const boardQuery = useQuery({
+    queryKey: ['monitor', 'board'],
+    queryFn: monitorApi.getBoard,
+    enabled: isBoothStaff,
+  })
+  const boothLabel = boardQuery.data?.booths
+    ?.map((booth) => `${t('monitor.booth')} ${booth.booth_no}`)
+    .join(', ')
 
   async function handleSignOut() {
     try {
@@ -100,7 +114,7 @@ export default function PanelLayout() {
 
         <div className="sidebar-context">
           <span className="sidebar-context-label">{t('roleWorkspace', { role: getRoleLabel(user?.role) })}</span>
-          {user?.desk_name ? <strong>{user.desk_name}</strong> : null}
+          {boothLabel || user?.desk_name ? <strong>{boothLabel || user.desk_name}</strong> : null}
         </div>
 
         <nav className="sidebar-navigation" aria-label="Main navigation">
