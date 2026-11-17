@@ -30,6 +30,30 @@ function selectionPayload(positions, selections) {
   }))
 }
 
+function RotationButton({ isRotated, onClick }) {
+  return (
+    <button className="booth-rotate-button" type="button" onClick={onClick}>
+      <span aria-hidden="true">↻</span>
+      {isRotated ? 'திரையை மீட்டமை' : 'திரையைச் சுழற்று'}
+    </button>
+  )
+}
+
+function ConfirmationDialog({ title, message, cancelLabel, confirmLabel, onCancel, onConfirm }) {
+  return (
+    <div className="booth-confirmation-backdrop">
+      <section className="booth-confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="booth-confirmation-title">
+        <h2 id="booth-confirmation-title">{title}</h2>
+        <p>{message}</p>
+        <div className="booth-confirmation-actions">
+          {cancelLabel ? <button className="button button-secondary" type="button" onClick={onCancel}>{cancelLabel}</button> : null}
+          <button className="button button-primary" type="button" onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export default function BoothHome() {
   const [deviceToken, setDeviceToken] = useState(readSavedToken)
   const [tokenDraft, setTokenDraft] = useState('')
@@ -43,6 +67,11 @@ export default function BoothHome() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [thankYou, setThankYou] = useState(false)
+  const [lockedPositionIds, setLockedPositionIds] = useState(() => new Set())
+  const [confirmingPositionExit, setConfirmingPositionExit] = useState(false)
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+  const [isRotated, setIsRotated] = useState(false)
+  const [limitNotice, setLimitNotice] = useState('')
 
   const positions = terminal?.positions || []
   const currentPosition = positions[screenIndex]
@@ -98,6 +127,10 @@ export default function BoothHome() {
       setReviewing(false)
       setSubmissionKey('')
       setSubmitError('')
+      setLockedPositionIds(new Set())
+      setConfirmingPositionExit(false)
+      setConfirmingSubmit(false)
+      setLimitNotice('')
     }, 5000)
     return () => window.clearTimeout(timerId)
   }, [thankYou])
@@ -115,10 +148,12 @@ export default function BoothHome() {
 
   const toggleCandidate = (candidateId) => {
     if (!currentPosition) return
+    if (lockedPositionIds.has(currentPosition.id)) return
     if (!currentSelection.includes(candidateId) && currentSelection.length >= currentPosition.max_choices) {
-      window.alert(`You can select only ${currentPosition.max_choices} candidate(s) for this position.`)
+      setLimitNotice(`இந்தப் பதவிக்கு அதிகபட்சம் ${currentPosition.max_choices} வேட்பாளர்களை மட்டுமே தேர்ந்தெடுக்கலாம்.`)
       return
     }
+    setLimitNotice('')
     setSelections((previous) => {
       const selected = previous[currentPosition.id] || []
       const nextSelected = selected.includes(candidateId)
@@ -131,12 +166,22 @@ export default function BoothHome() {
 
   const continueToNext = () => {
     if (!currentPosition || currentSelection.length !== currentPosition.max_choices) return
+    if (lockedPositionIds.has(currentPosition.id)) {
+      if (screenIndex < positions.length - 1) setScreenIndex((index) => index + 1)
+      else setReviewing(true)
+      return
+    }
+    setConfirmingPositionExit(true)
+  }
+
+  const confirmPositionExit = () => {
+    setLockedPositionIds((previous) => new Set(previous).add(currentPosition.id))
+    setConfirmingPositionExit(false)
     if (screenIndex < positions.length - 1) setScreenIndex((index) => index + 1)
     else setReviewing(true)
   }
 
   const submitBallot = async () => {
-    if (!window.confirm('Confirm and submit these choices? A submitted ballot cannot be changed.')) return
     const key = submissionKey || window.crypto.randomUUID()
     setSubmissionKey(key)
     setSubmitting(true)
@@ -156,7 +201,7 @@ export default function BoothHome() {
 
   if (thankYou) {
     return (
-      <main className="booth-voting-screen booth-thank-you" aria-live="polite">
+      <main className={`booth-voting-screen booth-thank-you${isRotated ? ' is-rotated' : ''}`} aria-live="polite">
         <div className="booth-success-mark" aria-hidden="true">✓</div>
         <p className="booth-language-label">நன்றி</p>
         <h1>Thank you for voting</h1>
@@ -216,29 +261,31 @@ export default function BoothHome() {
 
   if (reviewing) {
     return (
-      <main className="booth-voting-screen">
+      <main className={`booth-voting-screen${isRotated ? ' is-rotated' : ''}`}>
         <header className="booth-ballot-header">
-          <div className="brand-lockup">
-            <span className="brand-mark brand-mark--small" aria-hidden="true"><span /></span>
-            <span className="brand-copy"><strong>AVC Election</strong><small>{terminal.election.name}</small></span>
+          <div className="booth-header-brand-group">
+            <div className="brand-lockup">
+              <span className="brand-mark brand-mark--small" aria-hidden="true"><span /></span>
+              <span className="brand-copy"><strong>AVC Election</strong><small>{terminal.election.name}</small></span>
+            </div>
           </div>
-          <span className="booth-step-badge">Review your choices</span>
+          <div className="booth-header-actions">
+            <RotationButton isRotated={isRotated} onClick={() => setIsRotated((rotated) => !rotated)} />
+            <span className="booth-step-badge">Review your choices</span>
+          </div>
         </header>
         <section className="booth-review-content">
           <p className="booth-language-label">உங்கள் தேர்வுகளை சரிபார்க்கவும்</p>
           <h1>Review your ballot</h1>
           <p className="booth-review-intro">Check your selections before you submit your ballot.</p>
           <div className="booth-review-list">
-            {positions.map((position, index) => {
+            {positions.map((position) => {
               const selectedIds = selections[position.id] || []
               const chosenCandidates = position.candidates.filter((candidate) => selectedIds.includes(candidate.id))
               return (
                 <section className="booth-review-position" key={position.id}>
                   <div className="booth-review-position-heading">
                     <div><h2>{position.name_ta}</h2><p>{position.name_en}</p></div>
-                    <button className="button button-secondary" type="button" onClick={() => { setScreenIndex(index); setReviewing(false) }}>
-                      Edit
-                    </button>
                   </div>
                   <ul>
                     {chosenCandidates.map((candidate) => (
@@ -250,58 +297,114 @@ export default function BoothHome() {
             })}
           </div>
           <div className="booth-review-actions">
-            <button className="button button-secondary" type="button" onClick={() => { setReviewing(false); setScreenIndex(positions.length - 1) }}>
-              Back
-            </button>
-            <button className="button button-primary booth-submit-ballot" type="button" onClick={submitBallot} disabled={submitting}>
-              {submitting ? 'Submitting ballot…' : 'Confirm and submit ballot'}
+            <button className="button button-primary booth-submit-ballot" type="button" onClick={() => setConfirmingSubmit(true)} disabled={submitting}>
+              {submitting ? 'Submitting ballot…' : 'Submit ballot'}
             </button>
           </div>
           {submitError && <p className="booth-error-banner" role="alert">{submitError}</p>}
         </section>
+        {confirmingSubmit ? (
+          <ConfirmationDialog
+            title="வாக்குச் சீட்டைச் சமர்ப்பிக்கவா?"
+            message="சமர்ப்பித்த பிறகு உங்கள் வாக்குகளை மாற்ற முடியாது."
+            cancelLabel="ரத்து செய்"
+            confirmLabel="சமர்ப்பி"
+            onCancel={() => setConfirmingSubmit(false)}
+            onConfirm={() => {
+              setConfirmingSubmit(false)
+              submitBallot()
+            }}
+          />
+        ) : null}
+        {limitNotice ? (
+          <ConfirmationDialog
+            title="தேர்வு வரம்பு"
+            message={limitNotice}
+            confirmLabel="சரி"
+            onConfirm={() => setLimitNotice('')}
+          />
+        ) : null}
       </main>
     )
   }
 
   return (
-    <main className="booth-voting-screen">
+    <main className={`booth-voting-screen${isRotated ? ' is-rotated' : ''}`}>
       <header className="booth-ballot-header">
-        <div className="brand-lockup">
-          <span className="brand-mark brand-mark--small" aria-hidden="true"><span /></span>
-          <span className="brand-copy"><strong>AVC Election</strong><small>{terminal.election.name}</small></span>
+        <div className="booth-header-brand-group">
+          <div className="brand-lockup">
+            <span className="brand-mark brand-mark--small" aria-hidden="true"><span /></span>
+            <span className="brand-copy"><strong>AVC Election</strong><small>{terminal.election.name}</small></span>
+          </div>
         </div>
-        <span className="booth-step-badge">Screen {screenIndex + 1} of 7</span>
+        <div className="booth-header-actions">
+          <RotationButton isRotated={isRotated} onClick={() => setIsRotated((rotated) => !rotated)} />
+          <span className="booth-step-badge">Screen {screenIndex + 1} of 7</span>
+        </div>
       </header>
 
       <section className="booth-position-content" aria-labelledby="booth-position-title">
-        <p className="booth-language-label">{currentPosition.name_ta}</p>
-        <h1 id="booth-position-title">{currentPosition.name_en}</h1>
+        <h1 id="booth-position-title">{currentPosition.name_ta}</h1>
         <p className="booth-position-instruction">
-          Select {currentPosition.max_choices} {currentPosition.max_choices === 1 ? 'candidate' : 'candidates'} for this position.
-          <span> · இந்த பதவிக்கு {currentPosition.max_choices} வேட்பாளரைத் தேர்ந்தெடுக்கவும்.</span>
+          இந்தப் பதவிக்கு {currentPosition.max_choices} வேட்பாளரைத் தேர்ந்தெடுக்கவும்.
         </p>
-        <div className="booth-candidate-grid">
-          {currentPosition.candidates.map((candidate) => {
+        <div className="booth-candidate-table" role="table" aria-label={currentPosition.name_ta}>
+          <div className="booth-candidate-table-header" role="row">
+            <span role="columnheader">No.</span>
+            <span role="columnheader">Photo</span>
+            <span role="columnheader">Name</span>
+            <span role="columnheader">Position</span>
+            <span role="columnheader">Vote</span>
+          </div>
+          <div role="rowgroup">
+          {currentPosition.candidates.map((candidate, index) => {
             const isSelected = currentSelection.includes(candidate.id)
+            const isAtLimit = currentSelection.length >= currentPosition.max_choices
             return (
-              <button
-                className={`booth-candidate-card${isSelected ? ' is-selected' : ''}`}
+              <div
+                className={`booth-candidate-table-row${isSelected ? ' is-selected' : ''}${!isSelected && isAtLimit ? ' is-limit-reached' : ''}`}
                 key={candidate.id}
-                type="button"
-                aria-pressed={isSelected}
+                role="row"
+                aria-selected={isSelected}
+                aria-disabled={lockedPositionIds.has(currentPosition.id) || (!isSelected && isAtLimit)}
+                tabIndex={lockedPositionIds.has(currentPosition.id) || (!isSelected && isAtLimit) ? -1 : 0}
                 onClick={() => toggleCandidate(candidate.id)}
+                onKeyDown={(event) => {
+                  if (event.currentTarget !== event.target) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    toggleCandidate(candidate.id)
+                  }
+                }}
               >
-                <span className="booth-candidate-photo">
+                <span className="booth-candidate-number" data-label="No." role="cell">{String(index + 1).padStart(2, '0')}</span>
+                <span className="booth-candidate-row-photo" data-label="Photo" role="cell">
                   {candidate.photo_url
                     ? <img src={candidate.photo_url} alt="" />
                     : <span aria-hidden="true">{candidate.name_ta.slice(0, 1)}</span>}
                 </span>
-                <span className="booth-candidate-name-ta">{candidate.name_ta}</span>
-                {candidate.name_en && <span className="booth-candidate-name-en">{candidate.name_en}</span>}
-                <span className="booth-candidate-check" aria-hidden="true">{isSelected ? '✓' : ''}</span>
-              </button>
+                <span className="booth-candidate-row-name" data-label="Name" role="cell">
+                  <strong>{candidate.name_ta}</strong>
+                </span>
+                <span className="booth-candidate-row-position" data-label="Position" role="cell">{currentPosition.name_ta}</span>
+                <span className="booth-candidate-vote-cell" data-label="Vote" role="cell">
+                  <button
+                    className={`booth-candidate-vote-button${isSelected ? ' is-selected' : ''}`}
+                    type="button"
+                    aria-pressed={isSelected}
+                    disabled={lockedPositionIds.has(currentPosition.id) || (!isSelected && isAtLimit)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      toggleCandidate(candidate.id)
+                    }}
+                  >
+                    {isSelected ? 'தேர்வு ✓' : 'வாக்களி'}
+                  </button>
+                </span>
+              </div>
             )
           })}
+          </div>
         </div>
       </section>
 
@@ -311,11 +414,6 @@ export default function BoothHome() {
           <span>selected for this position · {selectedCount} / {terminal.election.ballot_total} choices</span>
         </div>
         <div className="booth-ballot-actions">
-          {screenIndex > 0 && (
-            <button className="button button-secondary" type="button" onClick={() => setScreenIndex((index) => index - 1)}>
-              Back
-            </button>
-          )}
           <button
             className="button button-primary booth-next-button"
             type="button"
@@ -326,6 +424,24 @@ export default function BoothHome() {
           </button>
         </div>
       </footer>
+      {confirmingPositionExit ? (
+        <ConfirmationDialog
+          title="தேர்வை உறுதிப்படுத்தவும்"
+          message="இந்தப் பக்கத்தை விட்டு வெளியேறிய பிறகு, இந்தத் தேர்வை மீண்டும் மாற்ற முடியாது."
+          cancelLabel="திரும்பிச் செல்"
+          confirmLabel="உறுதிசெய்து தொடரவும்"
+          onCancel={() => setConfirmingPositionExit(false)}
+          onConfirm={confirmPositionExit}
+        />
+      ) : null}
+      {limitNotice ? (
+        <ConfirmationDialog
+          title="தேர்வு வரம்பு"
+          message={limitNotice}
+          confirmLabel="சரி"
+          onConfirm={() => setLimitNotice('')}
+        />
+      ) : null}
     </main>
   )
 }

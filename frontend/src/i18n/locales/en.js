@@ -25,6 +25,7 @@ export default {
     audit: 'Audit log',
     entry: 'Entry desk',
     monitor: 'Booth board',
+    waiting: 'Waiting list',
     lookups: 'Approved lookups',
   },
   actions: {
@@ -101,8 +102,12 @@ export default {
     system: 'System',
     systemsTitle: 'Voting systems',
     systemsDescription: 'Live status for systems in your assigned booths.',
+    lookupTitle: 'Find voter details',
+    lookupDescription: 'Search by voter serial number to view their registration details.',
+    lookupSubmit: 'Find voter',
     waitingTitle: 'Waiting voters',
     waitingDescription: 'Voters checked in at the entry desk, waiting for a system.',
+    waitingName: 'Name',
     searchLabel: 'Find a voter',
     searchPlaceholder: 'Search by serial number or name',
     selectVoter: 'Select',
@@ -124,6 +129,7 @@ export default {
     systemLabel: 'Voting system',
     cancel: 'Cancel',
     giveAccess: 'Give access',
+    assignSystem: 'Assign voting system',
     assigning: 'Assigning…',
     assignedSuccess: '{{name}} ({{serial}}) assigned to Booth {{booth}}, System {{system}}.',
     state: {

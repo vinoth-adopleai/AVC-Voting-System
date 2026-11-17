@@ -77,6 +77,7 @@ function AppRoutes() {
         <Route element={<RequireAuth allowedRoles={['MONITOR_OFFICER', 'MONITOR_SUPERVISOR']} />}>
           <Route path="/monitor" element={<PanelLayout />}>
             <Route index element={<MonitorHome />} />
+            <Route path="waiting" element={<MonitorHome />} />
           </Route>
         </Route>
         <Route element={<RequireAuth allowedRoles={['AUDITOR']} />}>

@@ -5,11 +5,15 @@ export const monitorApi = {
     return apiRequest('/monitor/board')
   },
 
-  getWaiting(search = '') {
-    const query = new URLSearchParams()
+  getWaiting(search = '', page = 1, pageSize = 6) {
+    const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
     if (search.trim()) query.set('search', search.trim())
     const queryString = query.toString()
     return apiRequest(`/monitor/waiting${queryString ? `?${queryString}` : ''}`)
+  },
+
+  findVoter(serial) {
+    return apiRequest(`/monitor/voters?serial=${encodeURIComponent(serial)}`)
   },
 
   assignVoter(payload) {

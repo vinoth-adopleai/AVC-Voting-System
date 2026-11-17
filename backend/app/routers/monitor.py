@@ -120,6 +120,8 @@ async def booth_board(
 @router.get("/waiting")
 async def waiting_voters(
     search: str | None = Query(default=None, max_length=100),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=6, ge=1, le=50),
     officer: StaffUserRecord = Depends(require_booth_staff),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, object]:
@@ -132,22 +134,31 @@ async def waiting_voters(
             detail={"code": "BOOTH_NOT_ASSIGNED", "message": "No booth is assigned to your account"},
         )
 
-    query = select(VoterRecord).where(
+    voter_filters = [
         VoterRecord.election_id == election.id,
         VoterRecord.status == VoterStatus.ENTERED,
-    )
+        VoterRecord.entered_at.is_not(None),
+        VoterRecord.entry_allowed_by.is_not(None),
+    ]
     search_text = search.strip() if search else ""
     if search_text:
-        query = query.where(or_(
+        voter_filters.append(or_(
             func.lower(VoterRecord.serial_no) == search_text.casefold(),
             VoterRecord.name.ilike(f"%{search_text}%"),
         ))
-    voters = await session.scalars(query.order_by(VoterRecord.entered_at.asc()).limit(200))
-    now = datetime.now(timezone.utc)
+    total = await session.scalar(
+        select(func.count()).select_from(VoterRecord).where(*voter_filters)
+    ) or 0
+    voters = await session.scalars(
+        select(VoterRecord)
+        .where(*voter_filters)
+        .order_by(VoterRecord.entered_at.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
     items = []
     for voter in voters:
         entered_at = voter.entered_at
-        wait_seconds = max(0, int((now - entered_at).total_seconds())) if entered_at else 0
         items.append({
             "id": voter.id,
             "serial_no": voter.serial_no,
@@ -158,9 +169,91 @@ async def waiting_voters(
             "address": voter.address,
             "status": voter.status.value if isinstance(voter.status, VoterStatus) else voter.status,
             "entered_at": entered_at,
-            "wait_seconds": wait_seconds,
         })
-    return {"election_id": election.id, "election_name": election.name, "items": items}
+    return {
+        "election_id": election.id,
+        "election_name": election.name,
+        "items": items,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+    }
+
+
+@router.get("/voters")
+async def find_booth_voter(
+    serial: str = Query(min_length=1, max_length=20),
+    officer: StaffUserRecord = Depends(require_booth_staff),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, object]:
+    """Look up a voter in the open election for booth officer verification."""
+    election = await _get_open_election(session)
+    booths = await _managed_booths(officer, election.id, session)
+    if not booths:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "BOOTH_NOT_ASSIGNED", "message": "No booth is assigned to your account"},
+        )
+    serial_no = serial.strip()
+    if not serial_no:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "SERIAL_REQUIRED", "message": "Enter a voter serial number"},
+        )
+    voter = await session.scalar(
+        select(VoterRecord).where(
+            VoterRecord.election_id == election.id,
+            func.lower(VoterRecord.serial_no) == serial_no.casefold(),
+        )
+    )
+    if voter is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "VOTER_NOT_FOUND", "message": "Voter is not on the list for this election"},
+        )
+    if voter.status == VoterStatus.VOTED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "VOTER_ALREADY_VOTED",
+                "message": "This voter has already voted",
+            },
+        )
+    if voter.status == VoterStatus.BOOTH_ASSIGNED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "VOTER_ALREADY_ASSIGNED",
+                "message": "This voter has already been assigned to a voting system",
+            },
+        )
+    if (
+        voter.status != VoterStatus.ENTERED
+        or voter.entered_at is None
+        or voter.entry_allowed_by is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "VOTER_NOT_ENTERED",
+                "message": "This voter has not been marked as entered at the entry desk",
+            },
+        )
+    return {
+        "election_name": election.name,
+        "voter": {
+            "id": voter.id,
+            "serial_no": voter.serial_no,
+            "name": voter.name,
+            "photo": voter.photo,
+            "father_husband_name": voter.father_husband_name,
+            "age": voter.age,
+            "gender": voter.gender,
+            "address": voter.address,
+            "status": voter.status.value if isinstance(voter.status, VoterStatus) else voter.status,
+            "entered_at": voter.entered_at,
+        },
+    }
 
 
 @router.post("/assign")

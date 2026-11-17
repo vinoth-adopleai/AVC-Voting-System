@@ -6,13 +6,9 @@ import { entryApi } from '../../api/entryApi.js'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import StatusBadge from '../../components/ui/StatusBadge.jsx'
 import VoterPhoto from '../../components/ui/VoterPhoto.jsx'
+import { formatIstTime } from '../../utils/dateTime.js'
 
 const ENTRY_LOG_PAGE_SIZE = 8
-
-function formatTime(value) {
-  if (!value) return '—'
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(value))
-}
 
 function canUndo(voter, now) {
   if (voter?.status !== 'ENTERED' || !voter.entered_at) return false
@@ -132,12 +128,6 @@ export default function EntryHome() {
 
   return (
     <div className="entry-page">
-      <PageHeader
-        title={t('entry.title')}
-        description={t('entry.description')}
-        actions={logQuery.data?.election?.name ? <span className="entry-election-name">{logQuery.data.election.name}</span> : null}
-      />
-
       <div className="entry-workspace">
         <section className="entry-checkin-card" aria-labelledby="entry-search-title">
           <div className="entry-card-heading">
@@ -191,7 +181,7 @@ export default function EntryHome() {
                 {voter.age ? <div><dt>{t('entry.age')}</dt><dd>{voter.age}</dd></div> : null}
                 {voter.gender ? <div><dt>{t('entry.gender')}</dt><dd>{voter.gender === 'M' ? t('entry.male') : voter.gender === 'F' ? t('entry.female') : voter.gender}</dd></div> : null}
                 {voter.address ? <div className="entry-address"><dt>{t('entry.address')}</dt><dd>{voter.address}</dd></div> : null}
-                {voter.status === 'ENTERED' && voter.entered_at ? <div><dt>{t('entry.enteredAt')}</dt><dd>{formatTime(voter.entered_at)}</dd></div> : null}
+                {voter.status === 'ENTERED' && voter.entered_at ? <div><dt>{t('entry.enteredAt')}</dt><dd>{formatIstTime(voter.entered_at, true)}</dd></div> : null}
               </dl>
             </article>
           ) : null}
@@ -227,7 +217,7 @@ export default function EntryHome() {
                       <span className="entry-serial">{item.serial_no}</span>
                       <strong>{item.name}</strong>
                     </div>
-                    <time dateTime={item.entered_at}>{formatTime(item.entered_at)}</time>
+                    <time dateTime={item.entered_at}>{formatIstTime(item.entered_at, true)}</time>
                     {canUndo(item, now) ? (
                       <button className="button button-secondary entry-undo-button" disabled={undoMutation.isPending} onClick={() => undoMutation.mutate(item.id)} type="button">
                         {t('entry.undoButton')}
