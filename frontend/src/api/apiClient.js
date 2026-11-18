@@ -13,6 +13,7 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest(path, options = {}) {
+  const { responseType, ...requestOptions } = options
   const headers = new Headers(options.headers)
   const token = useAuthStore.getState().accessToken
 
@@ -25,14 +26,16 @@ export async function apiRequest(path, options = {}) {
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...requestOptions,
     headers,
     credentials: 'include',
   })
   const contentType = response.headers.get('content-type') ?? ''
-  const payload = contentType.includes('application/json')
-    ? await response.json()
-    : await response.text()
+  const payload = responseType === 'blob' && response.ok
+    ? await response.blob()
+    : contentType.includes('application/json')
+      ? await response.json()
+      : await response.text()
 
   if (!response.ok) {
     const detail = payload?.detail

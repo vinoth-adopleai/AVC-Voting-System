@@ -2,6 +2,7 @@
 
 from sqlalchemy import (
     BigInteger,
+    CHAR,
     Column,
     DDL,
     DateTime,
@@ -54,6 +55,30 @@ v_results_table = Table(
     Column("candidate_ta", Text, nullable=False),
     Column("candidate_en", Text),
     Column("vote_count", BigInteger, nullable=False),
+    Column("ballot_no", SmallInteger, nullable=False),
+    Column("election_id", SmallInteger, primary_key=True),
+    Column("position_name_ta", Text, nullable=False),
+    Column("photo_url", Text),
+    Column("position_id", SmallInteger, nullable=False),
+)
+
+v_voter_summary_table = Table(
+    "v_voter_summary",
+    view_registry.metadata,
+    Column("election_id", SmallInteger, primary_key=True),
+    Column("total_voters", BigInteger, nullable=False),
+    Column("entered_voters", BigInteger, nullable=False),
+    Column("voted_voters", BigInteger, nullable=False),
+    Column("not_entered_voters", BigInteger, nullable=False),
+)
+
+v_thokuthi_gender_table = Table(
+    "v_thokuthi_gender_counts",
+    view_registry.metadata,
+    Column("election_id", SmallInteger, primary_key=True),
+    Column("thokuthi", String(100), primary_key=True, nullable=False),
+    Column("gender", CHAR(1), primary_key=True, nullable=False),
+    Column("voter_count", BigInteger, nullable=False),
 )
 
 
@@ -69,9 +94,19 @@ class ElectionResultsView:
     """Submitted vote totals, exposed by ``v_results``."""
 
 
+class VoterSummaryView:
+    """Status counts for every election, exposed by ``v_voter_summary``."""
+
+
+class ThokuthiGenderCountView:
+    """Voter counts by Thokuthi and gender, exposed by ``v_thokuthi_gender_counts``."""
+
+
 view_registry.map_imperatively(VoterChoiceView, v_voter_choices_table)
 view_registry.map_imperatively(CandidateVotersView, v_candidate_voters_table)
 view_registry.map_imperatively(ElectionResultsView, v_results_table)
+view_registry.map_imperatively(VoterSummaryView, v_voter_summary_table)
+view_registry.map_imperatively(ThokuthiGenderCountView, v_thokuthi_gender_table)
 
 
 _create_views = (
@@ -104,7 +139,8 @@ _create_views = (
     CREATE OR REPLACE VIEW v_results AS
     SELECT p.display_order, p.name_en AS position_name,
            c.id AS candidate_id, c.name_ta AS candidate_ta, c.name_en AS candidate_en,
-           COUNT(x.vote_id) AS vote_count
+           COUNT(x.vote_id) AS vote_count, c.ballot_no, p.election_id,
+           p.name_ta AS position_name_ta, c.photo_url, p.id AS position_id
     FROM candidates c
     JOIN positions p ON p.id = c.position_id
     LEFT JOIN (
@@ -113,11 +149,37 @@ _create_views = (
         JOIN ballots b ON b.id = vt.ballot_id
         WHERE b.status = 'SUBMITTED'
     ) x ON x.candidate_id = c.id
-    GROUP BY p.display_order, p.name_en, c.id, c.name_ta, c.name_en
+    GROUP BY p.display_order, p.name_en, c.id, c.name_ta, c.name_en,
+             c.ballot_no, p.election_id, p.name_ta, c.photo_url, p.id
+    """,
+)
+
+DASHBOARD_VIEW_DDL = (
+    """
+    CREATE OR REPLACE VIEW v_voter_summary AS
+    SELECT e.id AS election_id,
+           COUNT(v.id) AS total_voters,
+           COUNT(v.id) FILTER (WHERE v.status IN ('ENTERED', 'BOOTH_ASSIGNED')) AS entered_voters,
+           COUNT(v.id) FILTER (WHERE v.status = 'VOTED') AS voted_voters,
+           COUNT(v.id) FILTER (WHERE v.status = 'ELIGIBLE') AS not_entered_voters
+    FROM elections e
+    LEFT JOIN voters v ON v.election_id = e.id
+    GROUP BY e.id
+    """,
+    """
+    CREATE OR REPLACE VIEW v_thokuthi_gender_counts AS
+    SELECT v.election_id,
+           COALESCE(v.thokuthi, '') AS thokuthi,
+           COALESCE(v.gender::text, '') AS gender,
+           COUNT(*) AS voter_count
+    FROM voters v
+    GROUP BY v.election_id, COALESCE(v.thokuthi, ''), COALESCE(v.gender::text, '')
     """,
 )
 
 _drop_views = (
+    "DROP VIEW IF EXISTS v_thokuthi_gender_counts",
+    "DROP VIEW IF EXISTS v_voter_summary",
     "DROP VIEW IF EXISTS v_results",
     "DROP VIEW IF EXISTS v_candidate_voters",
     "DROP VIEW IF EXISTS v_voter_choices",

@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from app.db import Base
 from app.db.connection import engine
+from app.db.views import DASHBOARD_VIEW_DDL
 
 
 # Serialize create_all across API workers starting against the same database.
@@ -26,6 +27,11 @@ async def initialize_database() -> None:
         await connection.execute(
             text("ALTER TABLE voters ADD COLUMN IF NOT EXISTS father_husband_name TEXT")
         )
+        await connection.execute(
+            text("ALTER TABLE voters ADD COLUMN IF NOT EXISTS thokuthi VARCHAR(100)")
+        )
+        for statement in DASHBOARD_VIEW_DDL:
+            await connection.execute(text(statement))
         await connection.execute(
             text(
                 """

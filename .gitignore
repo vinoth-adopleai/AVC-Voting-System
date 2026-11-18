@@ -11,6 +11,7 @@ venv/
 htmlcov/
 backend/media/candidates/
 /backend/media/
+/backend/private_report_exports/
 /.pdf_extract_tmp/
 /*.pdf
 

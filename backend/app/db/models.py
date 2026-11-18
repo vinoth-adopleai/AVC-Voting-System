@@ -240,6 +240,7 @@ class VoterRecord(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     father_husband_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     photo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    thokuthi: Mapped[str | None] = mapped_column(String(100), nullable=True)
     age: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     gender: Mapped[str | None] = mapped_column(CHAR(1), nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -541,6 +542,55 @@ class VoteLookupRecord(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+
+class ReportExportRecord(Base):
+    __tablename__ = "report_exports"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('QUEUED', 'RUNNING', 'READY', 'FAILED')",
+            name="ck_report_exports_status",
+        ),
+        CheckConstraint(
+            "report_type IN ('TURNOUT', 'FINAL_RESULTS', 'RECONCILIATION')",
+            name="ck_report_exports_type",
+        ),
+        CheckConstraint(
+            "export_format IN ('PDF', 'XLSX')",
+            name="ck_report_exports_format",
+        ),
+        Index("ix_report_exports_queue", "status", "created_at"),
+        Index("ix_report_exports_actor", "requested_by", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    election_id: Mapped[int] = mapped_column(
+        SmallInteger,
+        ForeignKey("elections.id"),
+        nullable=False,
+    )
+    requested_by: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("staff_users.id"),
+        nullable=False,
+    )
+    report_type: Mapped[str] = mapped_column(Text, nullable=False)
+    export_format: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="QUEUED",
+        server_default=text("'QUEUED'"),
+    )
+    file_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 Index(

@@ -305,12 +305,13 @@ export default function VotersSetup() {
               <div className="voter-record-list" role="table" aria-label="Voter records">
                 <div className="voter-record-header" role="rowgroup">
                   <div className="voter-record-row admin-list-header" role="row">
-                    <span role="columnheader">Serial number</span>
+                    <span role="columnheader">Serial</span>
                     <span role="columnheader">Photo</span>
                     <span role="columnheader">Name</span>
                     <span role="columnheader">Father / husband</span>
                     <span role="columnheader">Age</span>
                     <span role="columnheader">Gender</span>
+                    <span role="columnheader">Thokuthi</span>
                     <span role="columnheader">Address</span>
                     <span role="columnheader">Status</span>
                   </div>
@@ -326,6 +327,7 @@ export default function VotersSetup() {
                       <span data-label="Father / husband" role="cell">{voter.father_husband_name || '—'}</span>
                       <span data-label="Age" role="cell">{voter.age ?? '—'}</span>
                       <span data-label="Gender" role="cell">{voter.gender || '—'}</span>
+                      <span data-label="Thokuthi" role="cell">{voter.thokuthi || '—'}</span>
                       <span className="voter-record-address" data-label="Address" role="cell" title={voter.address || ''}>{voter.address || '—'}</span>
                       <span data-label="Status" role="cell"><StatusBadge tone={statusTone(voter.status)}>{voter.status}</StatusBadge></span>
                     </div>
