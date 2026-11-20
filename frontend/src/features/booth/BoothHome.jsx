@@ -2,11 +2,23 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { boothApi } from '../../api/boothApi.js'
 import agaramMahalImage from '../../logo/agaram_mahal.jpg'
+import avcFlagImage from '../../logo/avc_flag.jpeg'
 import thankYouImage from '../../logo/thankyou.avif'
+import voteSymbolImage from '../../logo/vote_symbol.png'
+import VoterPhoto from '../../components/ui/VoterPhoto.jsx'
 
 const DEVICE_TOKEN_KEY = 'avc-voting-device-token'
 const POLL_INTERVAL_MS = 2000
 const TAMIL_CHOICE_WORDS = ['', 'ஒரு', 'இரண்டு', 'மூன்று', 'நான்கு', 'ஐந்து']
+const POSITION_BACKGROUND_COLORS = [
+  ['தலைவர்', '#8ACFF8'],
+  ['செயலாளர்', '#FFDDDD'],
+  ['பொருளாளர்', '#FEFAF3'],
+  ['அன்னதானப்பட்டி', '#FFF2A5'],
+  ['செவ்வப்பேட்டை', '#9EED72'],
+  ['அரிசிபாளையம்', '#F2F2F2'],
+  ['பெண்கள்', '#FFADEE'],
+]
 
 function tamilChoiceWord(count) {
   return TAMIL_CHOICE_WORDS[count] || String(count)
@@ -37,6 +49,11 @@ function selectionPayload(positions, selections) {
   }))
 }
 
+function getPositionBackgroundColor(positionName) {
+  const matchingColor = POSITION_BACKGROUND_COLORS.find(([name]) => positionName.includes(name))
+  return matchingColor?.[1] || '#fff'
+}
+
 function BallotHeader() {
   const electionDay = new Intl.DateTimeFormat('ta-IN', {
     day: 'numeric',
@@ -49,10 +66,11 @@ function BallotHeader() {
     <header className="booth-ballot-header">
       <img className="booth-voting-logo" src={agaramMahalImage} alt="அகரம் மகால்" />
       <div className="booth-voting-masthead">
-        <h2>அகரம் வெள்ளாஞ்செட்டியார் சங்கம்</h2>
-        <p>பதிவு எண் : S. 14/1957 அகரமகால், அன்னதானப்பட்டி, சேலம் - 636 002</p>
+        <h2 style={{fontSize:"18px"}}>அகரம் வெள்ளாஞ்செட்டியார் சங்கம்</h2>
+        <p style={{fontSize: '9px'}}>பதிவு எண் : S. 14/1957 அகரமகால், அன்னதானப்பட்டி, சேலம் - 636 002</p>
         <p>தேர்தல் நாள் : {electionDay}</p>
       </div>
+      <img className="booth-voting-flag" src={avcFlagImage} alt="அகரம் வெள்ளாஞ்செட்டியார் சங்கக் கொடி" />
     </header>
   )
 }
@@ -330,18 +348,38 @@ export default function BoothHome() {
       />
 
       <section className="booth-position-content" aria-labelledby="booth-position-title">
-        <h1
+        <p
           className="booth-position-title--term"
           id="booth-position-title"
         >
-          {positionHeading}
-        </h1>
-        {isCommitteePosition ? <p className="booth-position-category">நிர்வாக குழு உறுப்பினர்கள்</p> : null}
+        {positionHeading}
+          {isCommitteePosition ? <span className="booth-position-category">நிர்வாக குழு உறுப்பினர்கள்</span> : null}
+        </p>
+        <div className="booth-assigned-voter" aria-label="வாக்காளர் விவரங்கள்">
+          <VoterPhoto
+            className="booth-assigned-voter-photo"
+            name={terminal.voter.name}
+            photo={terminal.voter.photo}
+          />
+          <div className="booth-assigned-voter-details">
+            <span>வாக்காளர் ID</span>
+            <strong>{terminal.voter.serial_no}</strong>
+            <strong>{terminal.voter.name}</strong>
+          </div>
+        </div>
         <p className="booth-position-instruction">
           இந்தப் பதவிக்கு <strong className="booth-instruction-emphasis">{tamilChoiceWord(currentPosition.max_choices)}</strong>{' '}
           {currentPosition.max_choices === 1 ? 'வேட்பாளரை' : 'வேட்பாளர்களை'} தேர்ந்தெடுக்கவும்.
         </p>
-        <div className="booth-candidate-table" role="table" aria-label={currentPosition.name_ta}>
+        <div
+          className="booth-candidate-table"
+          role="table"
+          aria-label={currentPosition.name_ta}
+          style={{
+            '--candidate-count': currentPosition.candidates.length,
+            '--position-background': getPositionBackgroundColor(currentPosition.name_ta),
+          }}
+        >
           <div className="booth-candidate-table-header" role="row">
             <span role="columnheader">வரிசை எண்</span>
             <span role="columnheader">வேட்பாளர்களின் பெயர்</span>
@@ -389,7 +427,12 @@ export default function BoothHome() {
                       toggleCandidate(candidate.id)
                     }}
                   >
-                    {isSelected ? 'தேர்ந்தெடுத்தது ✓' : 'வாக்களி'}
+                    {isSelected ? (
+                      <>
+                        <span>தேர்ந்தெடுத்தது</span>
+                        <img className="booth-voted-symbol" src={voteSymbolImage} alt="" />
+                      </>
+                    ) : 'வாக்களி'}
                   </button>
                 </span>
               </div>
@@ -412,8 +455,8 @@ export default function BoothHome() {
             onClick={continueToNext}
           >
             {screenIndex === positions.length - 1
-              ? submitting ? 'Submitting ballot…' : 'Submit ballot'
-              : 'Next position'} <span aria-hidden="true">→</span>
+              ? submitting ? 'Submitting ballot…' : 'வாக்குகளைச் சமர்ப்பிக்கவும்'
+              : 'அடுத்தது'}
           </button>
         </div>
       </footer>

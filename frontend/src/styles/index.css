@@ -286,7 +286,7 @@ input:focus-visible {
   display: inline-flex;
   height: 40px;
   align-items: center;
-  gap: 4px;
+  gap: 14px;
   padding: 4px;
   border: 1px solid rgb(217 221 227 / 78%);
   border-radius: 10px;
@@ -4178,8 +4178,11 @@ input:focus-visible {
 .booth-voting-screen {
   position: relative;
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   flex-direction: column;
+  overflow: hidden;
   background: #f5f7fa;
 }
 
@@ -4189,11 +4192,11 @@ input:focus-visible {
   top: 0;
   isolation: isolate;
   display: grid;
-  min-height: 154px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  min-height: 112px;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr) minmax(0, 90px);
   align-items: center;
-  gap: 16px;
-  padding: 12px clamp(14px, 3vw, 42px);
+  gap: 12px;
+  padding: 2px clamp(14px, 3vw, 42px);
   border-top: 4px solid #234f79;
   border-bottom: 1px solid #e2e8ee;
   background: #fff;
@@ -4202,8 +4205,8 @@ input:focus-visible {
 
 .booth-voting-logo {
   display: block;
-  width: min(100%, 220px);
-  height: 136px;
+  width: min(100%, 128px);
+  height: 88px;
   justify-self: start;
   object-fit: contain;
 }
@@ -4216,13 +4219,23 @@ input:focus-visible {
   text-align: center;
 }
 
+.booth-voting-flag {
+  display: block;
+  width: min(100%, 72px);
+  height: 76px;
+  justify-self: end;
+  object-fit: contain;
+}
+
 .booth-voting-masthead h2 {
+  max-width: 100%;
   margin: 0;
   color: #b72f25;
   font-size: clamp(12px, 1.8vw, 24px);
   font-weight: 800;
   line-height: 1.2;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   text-shadow: 1px 1px 0 #f2d45e, 2px 2px 0 #f2d45e;
 }
 
@@ -4283,10 +4296,14 @@ input:focus-visible {
 }
 
 .booth-position-content {
+  display: flex;
   width: min(100%, 1440px);
   flex: 1;
+  min-height: 0;
+  flex-direction: column;
   align-self: center;
-  padding: clamp(16px, 2.5vh, 26px) clamp(10px, 2vw, 28px) 16px;
+  overflow: hidden;
+  padding: clamp(8px, 1.5vh, 14px) clamp(8px, 1.5vw, 20px) 8px;
 }
 
 .booth-position-content > .booth-language-label {
@@ -4321,29 +4338,93 @@ input:focus-visible {
   font-weight: 800;
 }
 
-.booth-position-content h1.booth-position-title--term {
+.booth-position-content .booth-position-title--term {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
   color: #d63384;
-  font-size: clamp(20px, 2.2vw, 29px);
+  font-size: clamp(14px, 1.2vw, 17px);
+  font-weight: 700;
   letter-spacing: 0;
   text-align: center;
   white-space: nowrap;
 }
 
 .booth-position-category {
-  margin: 4px 0 0;
-  color: #b72f78;
-  font-size: clamp(15px, 1.6vw, 20px);
-  font-weight: 700;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
   text-align: center;
 }
 
+.booth-assigned-voter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.booth-assigned-voter-photo,
+.booth-assigned-voter-photo-empty {
+  width: 54px;
+  height: 64px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 6px;
+  background: #eef3f8;
+}
+
+.booth-assigned-voter-photo {
+  display: block;
+  padding: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.booth-assigned-voter-photo-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #718091;
+}
+
+.booth-assigned-voter-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  color: #203c57;
+  font-size: 12px;
+}
+
+.booth-assigned-voter-details span {
+  color: #68798a;
+  font-size: 10px;
+}
+
 .booth-candidate-table {
+  display: flex;
   min-width: 0;
   width: 100%;
-  overflow: visible;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid #dce4ed;
   border-radius: 12px;
-  background: #fff;
+  background: var(--position-background, #fff);
+}
+
+.booth-candidate-table > [role='rowgroup'] {
+  display: grid;
+  grid-template-rows: repeat(var(--candidate-count), min(100px, calc(100% / var(--candidate-count))));
+  min-height: 0;
+  flex: 1;
+  align-content: start;
+  overflow: hidden;
 }
 
 .booth-candidate-table-header,
@@ -4354,11 +4435,11 @@ input:focus-visible {
   row-gap: 8px;
   align-items: center;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 4px 8px;
 }
 
 .booth-candidate-table-header {
-  min-height: 50px;
+  min-height: 36px;
   border-bottom: 1px solid #dce5ed;
   background: #edf3f8;
   color: #5e7388;
@@ -4382,8 +4463,10 @@ input:focus-visible {
 }
 
 .booth-candidate-table-row {
-  min-height: 76px;
-  border-bottom: 1px solid #e8edf2;
+  min-height: 0;
+  height: 100%;
+  border-bottom: 2px solid #9aafc2;
+  background: var(--position-background, #fff);
   color: #526171;
   font-size: 13px;
   transition: background-color 140ms ease;
@@ -4422,8 +4505,10 @@ input:focus-visible {
 
 .booth-candidate-row-photo {
   display: grid;
-  width: 54px;
-  height: 54px;
+  width: min(64px, calc(100% - 1px));
+  height: min(64px, calc(100% - 1px));
+  margin-block: 0.5px;
+  aspect-ratio: 1;
   flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
@@ -4475,7 +4560,7 @@ input:focus-visible {
 .booth-candidate-vote-button {
   max-width: 180px;
   width: 100%;
-  min-height: 40px;
+  min-height: min(40px, calc(75vh / var(--candidate-count) - 8px));
   min-width: 0;
   padding: 0 8px;
   border: 1px solid #cbd9e5;
@@ -4491,9 +4576,23 @@ input:focus-visible {
 }
 
 .booth-candidate-vote-button.is-selected {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   border-color: #2c8a51;
   background: #2c8a51;
   color: #fff;
+  white-space: nowrap;
+}
+
+.booth-voted-symbol {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  flex: 0 0 18px;
+  object-fit: contain;
 }
 
 .booth-candidate-vote-button:disabled:not(.is-selected) {
@@ -4640,14 +4739,14 @@ input:focus-visible {
 @media (max-width: 640px) {
   .booth-ballot-header {
     min-height: 0;
-    grid-template-columns: 94px minmax(0, 1fr);
+    grid-template-columns: 58px minmax(0, 1fr) 56px;
     gap: 8px;
-    padding: 9px 13px;
+    padding: 2px 8px;
   }
 
   .booth-voting-logo {
-    width: 88px;
-    height: 74px;
+    width: 56px;
+    height: 48px;
     grid-column: 1;
     grid-row: 1;
   }
@@ -4657,21 +4756,29 @@ input:focus-visible {
     grid-row: 1;
   }
 
+  .booth-voting-flag {
+    width: 48px;
+    height: 44px;
+    grid-column: 3;
+    grid-row: 1;
+  }
+
   .booth-voting-masthead h2 {
-    font-size: clamp(11px, 1.8vw, 13px);
+    font-size: 10px;
+    line-height: 1.15;
   }
 
   .booth-voting-masthead p {
     font-size: 9px;
   }
 
-  .booth-position-content h1.booth-position-title--term {
-    font-size: clamp(16px, 4.5vw, 22px);
-    white-space: normal;
+  .booth-position-content .booth-position-title--term {
+    font-size: clamp(11px, 2.8vw, 14px);
+    white-space: nowrap;
   }
 
   .booth-position-content {
-    padding: 18px 10px 16px;
+    padding: 8px 8px 6px;
   }
 
   .booth-position-instruction {
