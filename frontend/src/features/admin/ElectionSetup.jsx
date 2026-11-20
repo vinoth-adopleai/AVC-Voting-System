@@ -2,14 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 
 import { adminApi } from '../../api/adminApi.js'
-import StatusBadge from '../../components/ui/StatusBadge.jsx'
+import { formatIstDateTime } from '../../utils/dateTime.js'
 
 function formatTimestamp(value) {
   if (!value) return 'Not recorded'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime())
-    ? 'Not recorded'
-    : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+  const timestamp = formatIstDateTime(value)
+  return timestamp === '—' ? 'Not recorded' : timestamp
 }
 
 function formatDuration(milliseconds) {
@@ -159,7 +157,6 @@ export default function ElectionSetup() {
     name.trim() !== election.name
     || electionDate !== election.election_date
   )
-  const isLocked = election && election.status !== 'DRAFT'
   const checkLabels = {
     positions: 'Positions and vote limits are configured',
     candidates: 'Every position has an active candidate',
@@ -176,14 +173,13 @@ export default function ElectionSetup() {
     <section className="election-setup-card" aria-labelledby="election-details-title">
       <div className="election-setup-heading">
         <div>
-          <p className="eyebrow">ELECTION DETAILS</p>
-          <h2 id="election-details-title">{election?.name ?? (isCreating ? 'Create election' : 'Configure an election')}</h2>
+          <p className="eyebrow" id="election-details-title">ELECTION DETAILS</p>
         </div>
-        {election ? (
-          <StatusBadge tone={election.status === 'DRAFT' ? 'warning' : election.status === 'CLOSED' ? 'neutral' : 'success'}>
-            {election.status}
-          </StatusBadge>
-        ) : null}
+        {!isCreating ? (
+          <button className="button button-secondary" onClick={beginCreate} type="button">Create election</button>
+        ) : (
+          <button className="button button-secondary" onClick={cancelCreate} type="button">Cancel</button>
+        )}
       </div>
 
       <div className="election-picker-row">
@@ -204,11 +200,6 @@ export default function ElectionSetup() {
             ))}
           </select>
         </label>
-        {!isCreating ? (
-          <button className="button button-secondary" onClick={beginCreate} type="button">Create election</button>
-        ) : (
-          <button className="button button-secondary" onClick={cancelCreate} type="button">Cancel</button>
-        )}
       </div>
 
       {election ? (
@@ -224,7 +215,7 @@ export default function ElectionSetup() {
         <p className="election-empty-note">Create an election to configure its schedule.</p>
       )}
 
-      {isCreating || (election && !isLocked) ? (
+      {isCreating ? (
         <form className="election-setup-form" id="election-setup-form" onSubmit={handleSubmit}>
           <label className="form-field" htmlFor="election-name">
             <span>Election name</span>
@@ -237,8 +228,6 @@ export default function ElectionSetup() {
           {saveMutation.isError ? <p className="form-error" role="alert">{saveMutation.error.message}</p> : null}
           {saveMutation.isSuccess ? <p className="election-save-success" role="status">Election saved.</p> : null}
         </form>
-      ) : election ? (
-        <p className="election-locked-note">Configuration is locked because this election is no longer a draft.</p>
       ) : null}
 
       {election?.status === 'DRAFT' ? (
@@ -305,7 +294,7 @@ export default function ElectionSetup() {
       <div className="election-status-actions" aria-label="Election status actions">
         <button
           className="button button-secondary election-save-button"
-          disabled={(!isCreating && (!election || Boolean(isLocked))) || saveMutation.isPending}
+          disabled={!isCreating || saveMutation.isPending}
           form="election-setup-form"
           type="submit"
         >

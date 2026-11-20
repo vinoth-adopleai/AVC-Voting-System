@@ -19,7 +19,7 @@ _VOTER_IMPORT_LOCK_ID = 741_628_451_036
 _MAX_CSV_BYTES = 10 * 1024 * 1024
 _MAX_CSV_ROWS = 20_000
 _REQUIRED_COLUMNS = {"serial_no", "name"}
-_OPTIONAL_COLUMNS = {"father_husband_name", "photo", "age", "gender", "address"}
+_OPTIONAL_COLUMNS = {"father_husband_name", "photo", "thokuthi", "age", "gender", "address"}
 _IGNORED_COLUMNS = {"status"}
 _ALL_COLUMNS = _REQUIRED_COLUMNS | _OPTIONAL_COLUMNS | _IGNORED_COLUMNS
 _HEADER_ALIASES = {
@@ -32,6 +32,9 @@ _HEADER_ALIASES = {
     "votername": "name",
     "photopath": "photo",
     "voterphotopath": "photo",
+    "thokuthi": "thokuthi",
+    "thokuthiname": "thokuthi",
+    "தொகுதி": "thokuthi",
     "fatherhusbandname": "father_husband_name",
     "fatherorhusbandname": "father_husband_name",
     "fathername": "father_husband_name",
@@ -57,7 +60,7 @@ def _normalize_header(header: str | None) -> str:
     """Map common human-readable voter CSV headings to database fields."""
     label = header.strip().lower() if header else ""
     compact = re.sub(r"[^a-z0-9]+", "", label)
-    return _HEADER_ALIASES.get(compact, label)
+    return _HEADER_ALIASES.get(label, _HEADER_ALIASES.get(compact, label))
 
 
 def _parse_csv(data: bytes) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
@@ -96,7 +99,7 @@ def _parse_csv(data: bytes) -> tuple[list[dict[str, object]], list[dict[str, obj
                 detail={
                     "code": "INVALID_CSV_COLUMNS",
                     "message": "; ".join(details),
-                    "expected_columns": ["serial_no", "name", "father_husband_name", "photo", "age", "gender", "address"],
+                    "expected_columns": ["serial_no", "name", "father_husband_name", "photo", "thokuthi", "age", "gender", "address"],
                 },
             )
 
@@ -120,12 +123,13 @@ def _parse_csv(data: bytes) -> tuple[list[dict[str, object]], list[dict[str, obj
             name = (values.get("name") or "").strip()
             father_husband_name = (values.get("father_husband_name") or "").strip() or None
             photo = (values.get("photo") or "").strip() or None
+            thokuthi = (values.get("thokuthi") or "").strip() or None
             age_value = (values.get("age") or "").strip()
             gender_text = (values.get("gender") or "").strip()
             gender_value = _GENDER_ALIASES.get(gender_text.casefold(), gender_text.upper() if len(gender_text) == 1 else gender_text)
             address = (values.get("address") or "").strip() or None
 
-            for field_name, field_value in (("serial_no", serial_no), ("name", name), ("father_husband_name", father_husband_name or ""), ("photo", photo or ""), ("gender", gender_value), ("address", address or "")):
+            for field_name, field_value in (("serial_no", serial_no), ("name", name), ("father_husband_name", father_husband_name or ""), ("photo", photo or ""), ("thokuthi", thokuthi or ""), ("gender", gender_value), ("address", address or "")):
                 if "\x00" in field_value:
                     row_errors.append(f"{field_name} cannot contain a null character")
 
@@ -158,6 +162,8 @@ def _parse_csv(data: bytes) -> tuple[list[dict[str, object]], list[dict[str, obj
                 row_errors.append("father_husband_name must be 2000 characters or fewer")
             if photo and len(photo) > 2_000:
                 row_errors.append("photo must be 2000 characters or fewer")
+            if thokuthi and len(thokuthi) > 100:
+                row_errors.append("thokuthi must be 100 characters or fewer")
 
             normalized = {
                 "row_number": row_number,
@@ -165,6 +171,7 @@ def _parse_csv(data: bytes) -> tuple[list[dict[str, object]], list[dict[str, obj
                 "name": name,
                 "father_husband_name": father_husband_name,
                 "photo": photo,
+                "thokuthi": thokuthi,
                 "age": age,
                 "gender": gender_value or None,
                 "address": address,
@@ -312,6 +319,7 @@ async def list_voters(
                 "name": voter.name,
                 "father_husband_name": voter.father_husband_name,
                 "photo": voter.photo,
+                "thokuthi": voter.thokuthi,
                 "age": voter.age,
                 "gender": voter.gender,
                 "address": voter.address,
@@ -369,6 +377,7 @@ async def import_voters(
             name=row["name"],
             father_husband_name=row["father_husband_name"],
             photo=row["photo"],
+            thokuthi=row["thokuthi"],
             age=row["age"],
             gender=row["gender"],
             address=row["address"],

@@ -102,6 +102,50 @@ export const adminApi = {
     return apiRequest(`/admin/voters?${query.toString()}`)
   },
 
+  getVoterDashboardSummary(electionId) {
+    return apiRequest(`/admin/dashboard/voters/summary?election_id=${encodeURIComponent(electionId)}`)
+  },
+
+  getThokuthiGenderCounts(electionId) {
+    return apiRequest(`/admin/dashboard/voters/thokuthi-gender?election_id=${encodeURIComponent(electionId)}`)
+  },
+
+  getTurnoutReport(electionId) {
+    return apiRequest(`/admin/reports/turnout?election_id=${encodeURIComponent(electionId)}`)
+  },
+
+  getReconciliationReport(electionId) {
+    return apiRequest(`/admin/reports/reconciliation?election_id=${encodeURIComponent(electionId)}`)
+  },
+
+  getFinalResults(electionId) {
+    return apiRequest(`/admin/reports/results?election_id=${encodeURIComponent(electionId)}`)
+  },
+
+  publishResults(electionId) {
+    return apiRequest('/admin/reports/publish', {
+      method: 'POST',
+      body: JSON.stringify({ election_id: electionId }),
+    })
+  },
+
+  requestReportExport(payload) {
+    return apiRequest('/admin/reports/exports', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  getReportExport(jobId) {
+    return apiRequest(`/admin/reports/exports/${encodeURIComponent(jobId)}`)
+  },
+
+  downloadReportExport(jobId) {
+    return apiRequest(`/admin/reports/exports/${encodeURIComponent(jobId)}/download`, {
+      responseType: 'blob',
+    })
+  },
+
   getStaff() {
     return apiRequest('/admin/staff')
   },

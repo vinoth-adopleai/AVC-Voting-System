@@ -159,6 +159,12 @@ async def get_terminal_session(
     return {
         "state": "BALLOT",
         "election": {"id": election.id, "name": election.name, "ballot_total": election.ballot_total},
+        "voter": {
+            "id": voter.id,
+            "serial_no": voter.serial_no,
+            "name": voter.name,
+            "photo": voter.photo,
+        },
         "position_count": len(positions),
         "positions": positions,
     }

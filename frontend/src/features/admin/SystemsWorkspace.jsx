@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 
 import { adminApi } from '../../api/adminApi.js'
 import StatusBadge from '../../components/ui/StatusBadge.jsx'
+import { formatIstDateTime } from '../../utils/dateTime.js'
 
 const BOOTHS_PER_PAGE = 5
 
@@ -398,7 +399,7 @@ export default function SystemsWorkspace() {
                             <StatusBadge tone={system.is_active ? system.status === 'OFFLINE' ? 'danger' : system.status === 'OCCUPIED' ? 'warning' : 'success' : 'neutral'}>
                               {system.is_active ? system.status : 'DISABLED'}
                             </StatusBadge>
-                            {system.last_seen_at ? <time dateTime={system.last_seen_at}>Seen {new Date(system.last_seen_at).toLocaleString()}</time> : <span className="systems-never-seen">Never connected</span>}
+                            {system.last_seen_at ? <time dateTime={system.last_seen_at}>Seen {formatIstDateTime(system.last_seen_at)}</time> : <span className="systems-never-seen">Never connected</span>}
                             <button
                               className="button button-secondary systems-rotate-token-button"
                               disabled={!canIssueDeviceToken || !system.is_active || system.status === 'OCCUPIED' || systemTokenMutation.isPending}

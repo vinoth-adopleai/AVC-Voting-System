@@ -9,6 +9,7 @@ import CandidatesSetup from './CandidatesSetup.jsx'
 import VotersSetup from './VotersSetup.jsx'
 import StaffWorkspace from './StaffWorkspace.jsx'
 import SystemsWorkspace from './SystemsWorkspace.jsx'
+import ReportsWorkspace from './ReportsWorkspace.jsx'
 
 const sectionConfig = {
   election: { key: 'election', description: '' },
@@ -56,6 +57,8 @@ export default function AdminSection() {
         <StaffWorkspace />
       ) : section === 'systems' ? (
         <SystemsWorkspace />
+      ) : section === 'reports' ? (
+        <ReportsWorkspace />
       ) : (
           <section className="section-workspace-card">
             <span className="section-workspace-icon" aria-hidden="true">✦</span>

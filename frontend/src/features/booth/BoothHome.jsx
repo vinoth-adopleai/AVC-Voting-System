@@ -1,9 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { boothApi } from '../../api/boothApi.js'
+import agaramMahalImage from '../../logo/agaram_mahal.jpg'
+import avcFlagImage from '../../logo/avc_flag.jpeg'
+import thankYouImage from '../../logo/thankyou.avif'
+import voteSymbolImage from '../../logo/vote_symbol.png'
+import VoterPhoto from '../../components/ui/VoterPhoto.jsx'
 
 const DEVICE_TOKEN_KEY = 'avc-voting-device-token'
 const POLL_INTERVAL_MS = 2000
+const TAMIL_CHOICE_WORDS = ['', 'ஒரு', 'இரண்டு', 'மூன்று', 'நான்கு', 'ஐந்து']
+const POSITION_BACKGROUND_COLORS = [
+  ['தலைவர்', '#8ACFF8'],
+  ['செயலாளர்', '#FFDDDD'],
+  ['பொருளாளர்', '#FEFAF3'],
+  ['அன்னதானப்பட்டி', '#FFF2A5'],
+  ['செவ்வப்பேட்டை', '#9EED72'],
+  ['அரிசிபாளையம்', '#F2F2F2'],
+  ['பெண்கள்', '#FFADEE'],
+]
+
+function tamilChoiceWord(count) {
+  return TAMIL_CHOICE_WORDS[count] || String(count)
+}
 
 function readSavedToken() {
   try {
@@ -30,6 +49,66 @@ function selectionPayload(positions, selections) {
   }))
 }
 
+function getPositionBackgroundColor(positionName) {
+  const matchingColor = POSITION_BACKGROUND_COLORS.find(([name]) => positionName.includes(name))
+  return matchingColor?.[1] || '#fff'
+}
+
+function BallotHeader() {
+  const electionDay = new Intl.DateTimeFormat('ta-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date())
+
+  return (
+    <header className="booth-ballot-header">
+      <img className="booth-voting-logo" src={agaramMahalImage} alt="அகரம் மகால்" />
+      <div className="booth-voting-masthead">
+        <h2 style={{fontSize:"18px"}}>அகரம் வெள்ளாஞ்செட்டியார் சங்கம்</h2>
+        <p style={{fontSize: '9px'}}>பதிவு எண் : S. 14/1957 அகரமகால், அன்னதானப்பட்டி, சேலம் - 636 002</p>
+        <p>தேர்தல் நாள் : {electionDay}</p>
+      </div>
+      <img className="booth-voting-flag" src={avcFlagImage} alt="அகரம் வெள்ளாஞ்செட்டியார் சங்கக் கொடி" />
+    </header>
+  )
+}
+
+function BallotCornerControls({ isRotated, onRotate, onBack, backDisabled = false }) {
+  return (
+    <>
+      <button
+        aria-label="முந்தைய பதவிக்குச் செல்லவும்"
+        className="booth-corner-hotspot booth-back-hotspot"
+        disabled={backDisabled}
+        onClick={onBack}
+        type="button"
+      />
+      <button
+        aria-label={isRotated ? 'திரையை மீட்டமை' : 'திரையைச் சுழற்று'}
+        className="booth-corner-hotspot booth-rotate-hotspot"
+        onClick={onRotate}
+        type="button"
+      />
+    </>
+  )
+}
+
+function ConfirmationDialog({ title, message, confirmLabel, onConfirm }) {
+  return (
+    <div className="booth-confirmation-backdrop">
+      <section className="booth-confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="booth-confirmation-title">
+        <h2 id="booth-confirmation-title">{title}</h2>
+        <p>{message}</p>
+        <div className="booth-confirmation-actions">
+          <button className="button button-primary" type="button" onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export default function BoothHome() {
   const [deviceToken, setDeviceToken] = useState(readSavedToken)
   const [tokenDraft, setTokenDraft] = useState('')
@@ -37,15 +116,31 @@ export default function BoothHome() {
   const [terminal, setTerminal] = useState(null)
   const [connectionError, setConnectionError] = useState('')
   const [screenIndex, setScreenIndex] = useState(0)
-  const [reviewing, setReviewing] = useState(false)
   const [selections, setSelections] = useState({})
   const [submissionKey, setSubmissionKey] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [thankYou, setThankYou] = useState(false)
+  const [lockedPositionIds, setLockedPositionIds] = useState(() => new Set())
+  const [confirmingPositionExit, setConfirmingPositionExit] = useState(false)
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+  const [isRotated, setIsRotated] = useState(false)
+  const [limitNotice, setLimitNotice] = useState('')
 
   const positions = terminal?.positions || []
   const currentPosition = positions[screenIndex]
+  const currentYear = Number(new Intl.DateTimeFormat('en', {
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date()))
+  const isCommitteePosition = currentPosition?.max_choices === 5
+  const currentPositionName = currentPosition?.name_ta?.trim() || ''
+  const committeeHeadingName = currentPositionName.endsWith('தொகுதி')
+    ? currentPositionName
+    : `${currentPositionName} தொகுதி`
+  const positionHeading = currentPosition
+    ? `${currentYear}-${currentYear + 3} ${isCommitteePosition ? committeeHeadingName : `${currentPositionName} பதவிக்கு`}`
+    : ''
   const currentSelection = currentPosition ? (selections[currentPosition.id] || []) : []
   const selectedCount = useMemo(
     () => Object.values(selections).reduce((total, ids) => total + ids.length, 0),
@@ -95,9 +190,12 @@ export default function BoothHome() {
       setSelections({})
       setTerminal(null)
       setScreenIndex(0)
-      setReviewing(false)
       setSubmissionKey('')
       setSubmitError('')
+      setLockedPositionIds(new Set())
+      setConfirmingPositionExit(false)
+      setConfirmingSubmit(false)
+      setLimitNotice('')
     }, 5000)
     return () => window.clearTimeout(timerId)
   }, [thankYou])
@@ -115,10 +213,12 @@ export default function BoothHome() {
 
   const toggleCandidate = (candidateId) => {
     if (!currentPosition) return
+    if (lockedPositionIds.has(currentPosition.id)) return
     if (!currentSelection.includes(candidateId) && currentSelection.length >= currentPosition.max_choices) {
-      window.alert(`You can select only ${currentPosition.max_choices} candidate(s) for this position.`)
+      setLimitNotice(`இந்தப் பதவிக்கு அதிகபட்சம் ${tamilChoiceWord(currentPosition.max_choices)} வேட்பாளர்களை மட்டுமே தேர்ந்தெடுக்கலாம்.`)
       return
     }
+    setLimitNotice('')
     setSelections((previous) => {
       const selected = previous[currentPosition.id] || []
       const nextSelected = selected.includes(candidateId)
@@ -131,12 +231,37 @@ export default function BoothHome() {
 
   const continueToNext = () => {
     if (!currentPosition || currentSelection.length !== currentPosition.max_choices) return
-    if (screenIndex < positions.length - 1) setScreenIndex((index) => index + 1)
-    else setReviewing(true)
+    if (screenIndex === positions.length - 1) {
+      setConfirmingSubmit(true)
+      return
+    }
+    if (lockedPositionIds.has(currentPosition.id)) {
+      setScreenIndex((index) => index + 1)
+      return
+    }
+    setConfirmingPositionExit(true)
+  }
+
+  const confirmPositionExit = () => {
+    setLockedPositionIds((previous) => new Set(previous).add(currentPosition.id))
+    setConfirmingPositionExit(false)
+    setScreenIndex((index) => Math.min(positions.length - 1, index + 1))
+  }
+
+  const navigateBack = () => {
+    if (screenIndex <= 0) return
+    const previousPosition = positions[screenIndex - 1]
+    if (previousPosition) {
+      setLockedPositionIds((previous) => {
+        const next = new Set(previous)
+        next.delete(previousPosition.id)
+        return next
+      })
+    }
+    setScreenIndex((index) => Math.max(0, index - 1))
   }
 
   const submitBallot = async () => {
-    if (!window.confirm('Confirm and submit these choices? A submitted ballot cannot be changed.')) return
     const key = submissionKey || window.crypto.randomUUID()
     setSubmissionKey(key)
     setSubmitting(true)
@@ -156,11 +281,9 @@ export default function BoothHome() {
 
   if (thankYou) {
     return (
-      <main className="booth-voting-screen booth-thank-you" aria-live="polite">
-        <div className="booth-success-mark" aria-hidden="true">✓</div>
-        <p className="booth-language-label">நன்றி</p>
-        <h1>Thank you for voting</h1>
-        <p>Your ballot has been submitted securely.</p>
+      <main className={`booth-voting-screen booth-thank-you${isRotated ? ' is-rotated' : ''}`} aria-live="polite">
+        <img className="booth-thank-you-image" src={thankYouImage} alt="" />
+        <h1>வாக்களித்தமைக்கு நன்றி</h1>
       </main>
     )
   }
@@ -214,118 +337,157 @@ export default function BoothHome() {
     )
   }
 
-  if (reviewing) {
-    return (
-      <main className="booth-voting-screen">
-        <header className="booth-ballot-header">
-          <div className="brand-lockup">
-            <span className="brand-mark brand-mark--small" aria-hidden="true"><span /></span>
-            <span className="brand-copy"><strong>AVC Election</strong><small>{terminal.election.name}</small></span>
-          </div>
-          <span className="booth-step-badge">Review your choices</span>
-        </header>
-        <section className="booth-review-content">
-          <p className="booth-language-label">உங்கள் தேர்வுகளை சரிபார்க்கவும்</p>
-          <h1>Review your ballot</h1>
-          <p className="booth-review-intro">Check your selections before you submit your ballot.</p>
-          <div className="booth-review-list">
-            {positions.map((position, index) => {
-              const selectedIds = selections[position.id] || []
-              const chosenCandidates = position.candidates.filter((candidate) => selectedIds.includes(candidate.id))
-              return (
-                <section className="booth-review-position" key={position.id}>
-                  <div className="booth-review-position-heading">
-                    <div><h2>{position.name_ta}</h2><p>{position.name_en}</p></div>
-                    <button className="button button-secondary" type="button" onClick={() => { setScreenIndex(index); setReviewing(false) }}>
-                      Edit
-                    </button>
-                  </div>
-                  <ul>
-                    {chosenCandidates.map((candidate) => (
-                      <li key={candidate.id}>{candidate.name_ta}{candidate.name_en ? ` · ${candidate.name_en}` : ''}</li>
-                    ))}
-                  </ul>
-                </section>
-              )
-            })}
-          </div>
-          <div className="booth-review-actions">
-            <button className="button button-secondary" type="button" onClick={() => { setReviewing(false); setScreenIndex(positions.length - 1) }}>
-              Back
-            </button>
-            <button className="button button-primary booth-submit-ballot" type="button" onClick={submitBallot} disabled={submitting}>
-              {submitting ? 'Submitting ballot…' : 'Confirm and submit ballot'}
-            </button>
-          </div>
-          {submitError && <p className="booth-error-banner" role="alert">{submitError}</p>}
-        </section>
-      </main>
-    )
-  }
-
   return (
-    <main className="booth-voting-screen">
-      <header className="booth-ballot-header">
-        <div className="brand-lockup">
-          <span className="brand-mark brand-mark--small" aria-hidden="true"><span /></span>
-          <span className="brand-copy"><strong>AVC Election</strong><small>{terminal.election.name}</small></span>
-        </div>
-        <span className="booth-step-badge">Screen {screenIndex + 1} of 7</span>
-      </header>
+    <main className={`booth-voting-screen${isRotated ? ' is-rotated' : ''}`}>
+      <BallotHeader />
+      <BallotCornerControls
+        isRotated={isRotated}
+        onRotate={() => setIsRotated((rotated) => !rotated)}
+        onBack={navigateBack}
+        backDisabled={screenIndex === 0}
+      />
 
       <section className="booth-position-content" aria-labelledby="booth-position-title">
-        <p className="booth-language-label">{currentPosition.name_ta}</p>
-        <h1 id="booth-position-title">{currentPosition.name_en}</h1>
-        <p className="booth-position-instruction">
-          Select {currentPosition.max_choices} {currentPosition.max_choices === 1 ? 'candidate' : 'candidates'} for this position.
-          <span> · இந்த பதவிக்கு {currentPosition.max_choices} வேட்பாளரைத் தேர்ந்தெடுக்கவும்.</span>
+        <p
+          className="booth-position-title--term"
+          id="booth-position-title"
+        >
+        {positionHeading}
+          {isCommitteePosition ? <span className="booth-position-category">நிர்வாக குழு உறுப்பினர்கள்</span> : null}
         </p>
-        <div className="booth-candidate-grid">
-          {currentPosition.candidates.map((candidate) => {
+        <div className="booth-assigned-voter" aria-label="வாக்காளர் விவரங்கள்">
+          <VoterPhoto
+            className="booth-assigned-voter-photo"
+            name={terminal.voter.name}
+            photo={terminal.voter.photo}
+          />
+          <div className="booth-assigned-voter-details">
+            <span>வாக்காளர் ID</span>
+            <strong>{terminal.voter.serial_no}</strong>
+            <strong>{terminal.voter.name}</strong>
+          </div>
+        </div>
+        <p className="booth-position-instruction">
+          இந்தப் பதவிக்கு <strong className="booth-instruction-emphasis">{tamilChoiceWord(currentPosition.max_choices)}</strong>{' '}
+          {currentPosition.max_choices === 1 ? 'வேட்பாளரை' : 'வேட்பாளர்களை'} தேர்ந்தெடுக்கவும்.
+        </p>
+        <div
+          className="booth-candidate-table"
+          role="table"
+          aria-label={currentPosition.name_ta}
+          style={{
+            '--candidate-count': currentPosition.candidates.length,
+            '--position-background': getPositionBackgroundColor(currentPosition.name_ta),
+          }}
+        >
+          <div className="booth-candidate-table-header" role="row">
+            <span role="columnheader">வரிசை எண்</span>
+            <span role="columnheader">வேட்பாளர்களின் பெயர்</span>
+            <span role="columnheader">புகைப்படம்</span>
+            <span role="columnheader">வாக்களிக்க</span>
+          </div>
+          <div role="rowgroup">
+          {currentPosition.candidates.map((candidate, index) => {
             const isSelected = currentSelection.includes(candidate.id)
+            const isAtLimit = currentSelection.length >= currentPosition.max_choices
             return (
-              <button
-                className={`booth-candidate-card${isSelected ? ' is-selected' : ''}`}
+              <div
+                className={`booth-candidate-table-row${isSelected ? ' is-selected' : ''}${!isSelected && isAtLimit ? ' is-limit-reached' : ''}`}
                 key={candidate.id}
-                type="button"
-                aria-pressed={isSelected}
+                role="row"
+                aria-selected={isSelected}
+                aria-disabled={lockedPositionIds.has(currentPosition.id) || (!isSelected && isAtLimit)}
+                tabIndex={lockedPositionIds.has(currentPosition.id) || (!isSelected && isAtLimit) ? -1 : 0}
                 onClick={() => toggleCandidate(candidate.id)}
+                onKeyDown={(event) => {
+                  if (event.currentTarget !== event.target) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    toggleCandidate(candidate.id)
+                  }
+                }}
               >
-                <span className="booth-candidate-photo">
+                <span className="booth-candidate-number" data-label="வரிசை எண்" role="cell">{String(index + 1).padStart(2, '0')}</span>
+                <span className="booth-candidate-row-name" data-label="வேட்பாளர்களின் பெயர்" role="cell">
+                  <strong>{candidate.name_ta}</strong>
+                </span>
+                <span className="booth-candidate-row-photo" data-label="புகைப்படம்" role="cell">
                   {candidate.photo_url
                     ? <img src={candidate.photo_url} alt="" />
                     : <span aria-hidden="true">{candidate.name_ta.slice(0, 1)}</span>}
                 </span>
-                <span className="booth-candidate-name-ta">{candidate.name_ta}</span>
-                {candidate.name_en && <span className="booth-candidate-name-en">{candidate.name_en}</span>}
-                <span className="booth-candidate-check" aria-hidden="true">{isSelected ? '✓' : ''}</span>
-              </button>
+                <span className="booth-candidate-vote-cell" data-label="வாக்களிக்க" role="cell">
+                  <button
+                    className={`booth-candidate-vote-button${isSelected ? ' is-selected' : ''}`}
+                    type="button"
+                    aria-pressed={isSelected}
+                    disabled={lockedPositionIds.has(currentPosition.id) || (!isSelected && isAtLimit)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      toggleCandidate(candidate.id)
+                    }}
+                  >
+                    {isSelected ? (
+                      <>
+                        <span>தேர்ந்தெடுத்தது</span>
+                        <img className="booth-voted-symbol" src={voteSymbolImage} alt="" />
+                      </>
+                    ) : 'வாக்களி'}
+                  </button>
+                </span>
+              </div>
             )
           })}
+          </div>
         </div>
       </section>
 
       <footer className="booth-ballot-footer">
         <div className="booth-ballot-count" aria-live="polite">
-          <strong>{currentSelection.length} / {currentPosition.max_choices}</strong>
-          <span>selected for this position · {selectedCount} / {terminal.election.ballot_total} choices</span>
+          <strong>{currentSelection.length} / {tamilChoiceWord(currentPosition.max_choices)}</strong>
+          <span>இந்தப் பதவியில் தேர்ந்தெடுத்தவை · {selectedCount} / {terminal.election.ballot_total} தேர்வுகள்</span>
         </div>
         <div className="booth-ballot-actions">
-          {screenIndex > 0 && (
-            <button className="button button-secondary" type="button" onClick={() => setScreenIndex((index) => index - 1)}>
-              Back
-            </button>
-          )}
           <button
             className="button button-primary booth-next-button"
             type="button"
-            disabled={currentSelection.length !== currentPosition.max_choices}
+            disabled={currentSelection.length !== currentPosition.max_choices || submitting}
             onClick={continueToNext}
           >
-            {screenIndex === positions.length - 1 ? 'Review ballot' : 'Next position'} <span aria-hidden="true">→</span>
+            {screenIndex === positions.length - 1
+              ? submitting ? 'Submitting ballot…' : 'வாக்குகளைச் சமர்ப்பிக்கவும்'
+              : 'அடுத்தது'}
           </button>
         </div>
       </footer>
+      {submitError ? <p className="booth-error-banner" role="alert">{submitError}</p> : null}
+      {confirmingPositionExit ? (
+        <ConfirmationDialog
+          title="தேர்வை உறுதிப்படுத்தவும்"
+          message="இந்தப் பக்கத்தை விட்டு வெளியேறிய பிறகு, இந்தத் தேர்வை மீண்டும் மாற்ற முடியாது."
+          confirmLabel="உறுதிசெய்து தொடரவும்"
+          onConfirm={confirmPositionExit}
+        />
+      ) : null}
+      {confirmingSubmit ? (
+        <ConfirmationDialog
+          title="வாக்குச் சீட்டைச் சமர்ப்பிக்கவா?"
+          message="சமர்ப்பித்த பிறகு உங்கள் வாக்குகளை மாற்ற முடியாது."
+          confirmLabel={submitting ? 'சமர்ப்பிக்கிறது…' : 'சமர்ப்பி'}
+          onConfirm={() => {
+            setConfirmingSubmit(false)
+            submitBallot()
+          }}
+        />
+      ) : null}
+      {limitNotice ? (
+        <ConfirmationDialog
+          title="தேர்வு வரம்பு"
+          message={limitNotice}
+          confirmLabel="சரி"
+          onConfirm={() => setLimitNotice('')}
+        />
+      ) : null}
     </main>
   )
 }

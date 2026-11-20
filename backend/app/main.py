@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,8 @@ from app.db.connection import engine, get_db_session
 from app.db.initialize import initialize_database
 from app.routers.auth import router as auth_router
 from app.routers.admin import router as admin_router
+from app.routers.admin_dashboard import router as admin_dashboard_router
+from app.routers.admin_reports import router as admin_reports_router
 from app.routers.admin_candidates import router as admin_candidates_router
 from app.routers.admin_voters import router as admin_voters_router
 from app.routers.admin_staff import router as admin_staff_router
@@ -19,6 +22,7 @@ from app.routers.admin_systems import router as admin_systems_router
 from app.routers.entry import router as entry_router
 from app.routers.monitor import router as monitor_router
 from app.routers.booth import router as booth_router
+from app.services.report_exports import run_report_export_worker
 from app.storage import MEDIA_ROOT, ensure_media_directories
 
 
@@ -30,8 +34,13 @@ ensure_media_directories()
 async def lifespan(_: FastAPI):
     """Initialize the schema before serving requests and close the pool on shutdown."""
     await initialize_database()
-    yield
-    await engine.dispose()
+    export_worker = asyncio.create_task(run_report_export_worker())
+    try:
+        yield
+    finally:
+        export_worker.cancel()
+        await asyncio.gather(export_worker, return_exceptions=True)
+        await engine.dispose()
 
 
 app = FastAPI(
@@ -41,6 +50,8 @@ app = FastAPI(
 )
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(admin_dashboard_router)
+app.include_router(admin_reports_router)
 app.include_router(admin_candidates_router)
 app.include_router(admin_voters_router)
 app.include_router(admin_staff_router)
